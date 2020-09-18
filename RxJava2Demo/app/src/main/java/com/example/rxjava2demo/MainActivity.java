@@ -3,25 +3,29 @@ package com.example.rxjava2demo;
 import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.Lifecycle;
 
-
-import com.trello.lifecycle2.android.lifecycle.AndroidLifecycle;
 import com.trello.rxlifecycle3.LifecycleProvider;
-
 
 import org.json.JSONException;
 
 import java.util.concurrent.TimeUnit;
 
+import io.reactivex.Completable;
+import io.reactivex.CompletableEmitter;
+import io.reactivex.CompletableOnSubscribe;
+import io.reactivex.Maybe;
+import io.reactivex.MaybeEmitter;
+import io.reactivex.MaybeOnSubscribe;
 import io.reactivex.Observable;
 import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.ObservableSource;
 import io.reactivex.ObservableTransformer;
+import io.reactivex.Single;
+import io.reactivex.SingleOnSubscribe;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
@@ -38,8 +42,110 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         findViewById(R.id.tv_dailog).setOnClickListener(v -> code2Dialog());
-        LifecycleProvider<Lifecycle.Event> provider
-                = AndroidLifecycle.createLifecycleProvider(this);
+//        LifecycleProvider<Lifecycle.Event> provider
+//                = AndroidLifecycle.createLifecycleProvider(this);
+//        testLifecycle(provider);
+
+        testSingle();
+        testCompletable();
+        testMaybe();
+    }
+
+    @SuppressLint("CheckResult")
+    public void testSingle() {
+        //可看到只回调了一个test
+        Single.create((SingleOnSubscribe<String>) e -> {
+            e.onSuccess("test");
+            e.onSuccess("test");
+        }).subscribe(s -> Log.d(TAG, s), throwable -> throwable.printStackTrace());
+    }
+
+    @SuppressLint("CheckResult")
+    public void testCompletable() {
+        //Completable 经常会结合andThen操作符
+        Completable.create(new CompletableOnSubscribe() {
+            @Override
+            public void subscribe(@NonNull CompletableEmitter emitter) throws Exception {
+
+                try {
+                    TimeUnit.SECONDS.sleep(1);
+                    emitter.onComplete();
+                } catch (InterruptedException e) {
+                    emitter.onError(e);
+                }
+            }
+        }).andThen(Observable.range(1, 10))
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(@NonNull Integer integer) throws Exception {
+                        Log.d(TAG, integer.toString());
+                    }
+                });
+    }
+
+    @SuppressLint("CheckResult")
+    public void testMaybe() {
+        Maybe.create(new MaybeOnSubscribe<String>() {
+
+            @Override
+            public void subscribe(@NonNull MaybeEmitter<String> e) throws Exception {
+                e.onSuccess("testA");
+                e.onSuccess("testB");
+            }
+        }).subscribe(new Consumer<String>() {
+
+            @Override
+            public void accept(@NonNull String s) throws Exception {
+
+                Log.d(TAG, "s=" + s);
+            }
+        });
+
+        Maybe.create(new MaybeOnSubscribe<String>() {
+
+            @Override
+            public void subscribe(@NonNull MaybeEmitter<String> e) throws Exception {
+                e.onComplete();
+                e.onSuccess("testA");
+            }
+        }).subscribe(new Consumer<String>() {
+
+            @Override
+            public void accept(@NonNull String s) throws Exception {
+
+                Log.d(TAG, "s=" + s);
+            }
+        });
+
+        Maybe.create(new MaybeOnSubscribe<String>() {
+
+            @Override
+            public void subscribe(@NonNull MaybeEmitter<String> e) throws Exception {
+                e.onComplete();
+                e.onSuccess("testA");
+            }
+        }).subscribe(new Consumer<String>() {
+
+            @Override
+            public void accept(@NonNull String s) throws Exception {
+
+                Log.d(TAG, "s=" + s);
+            }
+        }, new Consumer<Throwable>() {
+            @Override
+            public void accept(@NonNull Throwable throwable) throws Exception {
+
+            }
+        }, new Action() {
+            @Override
+            public void run() throws Exception {
+                Log.d(TAG, "Maybe onComplete");
+            }
+        });
+    }
+
+    @SuppressLint("CheckResult")
+    private void testLifecycle(LifecycleProvider<Lifecycle.Event> provider) {
         Observable.interval(3, 2, TimeUnit.SECONDS)
                 .doOnDispose(new Action() {
                     @Override
@@ -59,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        Log.d(TAG,  "onDestroy");
+        Log.d(TAG, "onDestroy");
     }
 
     @SuppressLint("CheckResult")
